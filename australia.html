@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Konturówka + Australia</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        background: #f6f7f9;
+        color: #222;
+      }
+
+      .app {
+        display: flex;
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+      }
+
+      .sidebar {
+        width: 300px;
+        min-width: 260px;
+        max-width: 420px;
+        background: #ffffff;
+        border-right: 1px solid #e5e7eb;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .sidebar header {
+        padding: 14px 16px 10px;
+        border-bottom: 1px solid #eef0f2;
+      }
+
+      .sidebar h1 {
+        margin: 0 0 6px;
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .controls {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .controls button {
+        appearance: none;
+        border: 1px solid #d1d5db;
+        background: #fff;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      .controls button.primary {
+        background: #2563eb;
+        color: #fff;
+        border-color: #2563eb;
+      }
+
+      .controls button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .list {
+        padding: 8px 12px 12px;
+        overflow: auto;
+      }
+
+      .list .search {
+        margin: 4px 0 10px;
+      }
+
+      .list input[type="text"] {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid #d1d5db;
+        font-size: 14px;
+      }
+
+      .cities {
+        list-style: none;
+        padding: 0;
+        margin: 8px 0 0;
+        max-height: calc(100vh - 210px);
+        overflow: auto;
+      }
+
+      .cities li {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 4px;
+        border-radius: 6px;
+      }
+
+      .cities li:hover {
+        background: #f3f4f6;
+      }
+
+      .main {
+        position: relative;
+        flex: 1;
+        display: flex;
+        align-items: stretch;
+        justify-content: center;
+        background: #e5e7eb;
+      }
+
+      #map {
+        height: 100%;
+        width: 100%;
+      }
+
+      /* Ulepszenia mobilne: pełna szerokość panelu wyboru */
+      @media (max-width: 768px) {
+        .sidebar {
+          width: 100%;
+          max-width: none;
+        }
+      }
+
+      .hud {
+        position: absolute;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 12px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 8px 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        font-size: 14px;
+        z-index: 500;
+      }
+
+      .hud .target {
+        font-weight: 600;
+      }
+
+      .toast {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(17,24,39,0.9);
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 14px;
+        display: none;
+        z-index: 600;
+      }
+
+      .footer {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        background: rgba(255,255,255,0.85);
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 12px;
+        z-index: 500;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <header>
+          <h1><a href="index.html">Konturówka + Australia</a></h1>
+          <div class="controls">
+            <button id="selectAll">Zaznacz wszystkie</button>
+            <button id="deselectAll">Odznacz wszystkie</button>
+            <label for="sort" style="margin-left:auto; font-size:12px; align-self:center;">Sortuj:</label>
+            <select id="sort" style="border:1px solid #d1d5db; border-radius:6px; padding:6px 8px; font-size:13px;">
+              <option value="name-asc">A → Z</option>
+              <option value="name-desc">Z → A</option>
+            </select>
+            <input id="pickCount" type="number" min="1" value="10" title="Ile pierwszych zaznaczyć" style="width:72px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" />
+            <button id="pickTop">Wybierz X pierwszych</button>
+            <button id="startBtn" class="primary">Start</button>
+            <button id="resetBtn">Reset</button>
+          </div>
+        </header>
+        <div class="list">
+          <div class="search">
+            <input id="search" type="text" placeholder="Szukaj państwa..." />
+          </div>
+          <ul id="countryList" class="cities"></ul>
+        </div>
+      </aside>
+      <main class="main">
+        <div id="map"></div>
+        <div class="hud" id="hud" style="display:none;">
+          <div>Cel: <span class="target" id="targetName">—</span></div>
+          <div>Punkty: <span id="score">0</span></div>
+          <div>Postęp: <span id="progress">0/0</span></div>
+        </div>
+        <div class="toast" id="toast"></div>
+        <div class="footer">Warstwa: CartoDB Positron No Labels • Dane © OpenStreetMap</div>
+      </main>
+    </div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script>
+      // --- Dane: państwa z pliku panstwa.txt ---
+const COUNTRY_DATA = [
+  // OCEANY
+  { name: 'Ocean Indyjski', lat: -30.0, lng: 80.0 },
+  { name: 'Ocean Spokojny', lat: -25.0, lng: 175.0 },
+
+  // MORZA
+  { name: 'Morze Timor', lat: -10.5, lng: 128.0 },
+  { name: 'Morze Arafura', lat: -10.0, lng: 136.0 },
+  { name: 'Morze Koralowe', lat: -18.0, lng: 153.0 },
+  { name: 'Morze Tasmana', lat: -40.0, lng: 160.0 },
+
+  // ZATOKI
+  { name: 'Zatoka Josepha Bonapartego', lat: -14.5, lng: 128.5 },
+  { name: 'Zatoka Karpentaria', lat: -14.0, lng: 137.0 },
+  { name: 'Wielka Zatoka Australijska', lat: -33.0, lng: 130.0 },
+
+  // CIEŚNINY
+  { name: 'Cieśnina Torresa', lat: -10.5, lng: 142.0 },
+  { name: 'Cieśnina Bassa', lat: -40.0, lng: 146.0 },
+
+  // PÓŁWYSPY / PRZYLĄDKI
+  { name: 'Półwysep Jork', lat: -13.0, lng: 142.5 },
+  { name: 'Ziemia Arnhema', lat: -13.0, lng: 134.0 },
+  { name: 'Przylądek Jork', lat: -10.7, lng: 142.5 },
+  { name: 'Przylądek Północno-Zachodni', lat: -21.8, lng: 114.2 },
+
+  // WYSPY
+  { name: 'Tasmania', lat: -42.0, lng: 146.5 },
+  { name: 'Nowa Gwinea', lat: -6.0, lng: 144.0 },
+  { name: 'Nowa Zelandia', lat: -42.0, lng: 172.0 },
+
+  // RAFA KORALOWA
+  { name: 'Wielka Rafa Koralowa', lat: -18.0, lng: 147.5 },
+
+  // WYŻYNY
+  { name: 'Wyżyna Zachodnioaustralijska', lat: -25.0, lng: 122.0 },
+  { name: 'Wyżyna Kimberley', lat: -17.0, lng: 126.0 },
+
+  // NIZINY
+  { name: 'Niziny Wewnętrzne', lat: -28.0, lng: 142.0 },
+  { name: 'Nizina Murray-Darling', lat: -34.0, lng: 143.0 },
+
+  // GÓRY
+  { name: 'Wielkie Góry Wododziałowe', lat: -33.0, lng: 150.5 },
+  { name: 'Alpy Australijskie', lat: -36.5, lng: 148.0 },
+  { name: 'Góry MacDonnella', lat: -23.5, lng: 133.5 },
+  { name: 'Góry Musgrave', lat: -26.0, lng: 131.5 },
+  { name: 'Góry Flindersa', lat: -31.5, lng: 138.5 },
+
+  // SZCZYTY GÓRSKIE
+  { name: 'Góra Kościuszki', lat: -36.5, lng: 148.3 },
+
+  // RZEKI
+  { name: 'Rzeka Murray', lat: -35.0, lng: 139.5 },
+  { name: 'Rzeka Darling', lat: -32.0, lng: 143.5 },
+  { name: 'Rzeka Murrumbidgee', lat: -34.5, lng: 145.0 },
+  { name: 'Rzeka Cooper Creek', lat: -27.5, lng: 139.0 },
+
+  // JEZIORA
+  { name: 'Jezioro Eyre', lat: -29.0, lng: 137.5 },
+  { name: 'Jezioro Torrens', lat: -30.5, lng: 137.8 },
+  { name: 'Jezioro Gairdner', lat: -31.5, lng: 136.0 },
+
+  // PUSTYNIE
+  { name: 'Wielka Pustynia Piaszczysta', lat: -21.0, lng: 124.0 },
+  { name: 'Wielka Pustynia Wiktorii', lat: -28.0, lng: 127.0 },
+  { name: 'Pustynia Gibsona', lat: -24.0, lng: 124.5 },
+  { name: 'Pustynia Simpsona', lat: -25.5, lng: 137.0 },
+  { name: 'Pustynia Tanami', lat: -20.0, lng: 131.5 },
+
+  // KOTLINY / BASENY
+  { name: 'Wielki Basen Artezyjski', lat: -26.0, lng: 144.0 },
+  { name: 'Basen Jeziora Eyre', lat: -28.5, lng: 136.0 },
+];
+      // --- Inicjalizacja listy państw ---
+      const countryListEl = document.getElementById('countryList');
+      const searchEl = document.getElementById('search');
+      const startBtn = document.getElementById('startBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const selectAllBtn = document.getElementById('selectAll');
+      const deselectAllBtn = document.getElementById('deselectAll');
+      const hud = document.getElementById('hud');
+      const scoreEl = document.getElementById('score');
+      const progressEl = document.getElementById('progress');
+      const targetNameEl = document.getElementById('targetName');
+      const toastEl = document.getElementById('toast');
+      const sortEl = document.getElementById('sort');
+      const pickCountEl = document.getElementById('pickCount');
+      const pickTopBtn = document.getElementById('pickTop');
+      const appEl = document.querySelector('.app');
+      const sidebarEl = document.querySelector('.sidebar');
+      const mainEl = document.querySelector('.main');
+
+      // Dynamiczne dodanie trybu quizu (klik/wpisywanie) i pola odpowiedzi
+      const controlsEl = document.querySelector('.controls');
+      let modeEl = document.getElementById('mode');
+      if (!modeEl && controlsEl && sortEl) {
+        const modeLabel = document.createElement('label');
+        modeLabel.setAttribute('for', 'mode');
+        modeLabel.style.marginLeft = '6px';
+        modeLabel.style.fontSize = '12px';
+        modeLabel.style.alignSelf = 'center';
+        modeLabel.textContent = 'Tryb:';
+
+        modeEl = document.createElement('select');
+        modeEl.id = 'mode';
+        modeEl.title = 'Wybierz tryb quizu';
+        modeEl.style.border = '1px solid #d1d5db';
+        modeEl.style.borderRadius = '6px';
+        modeEl.style.padding = '6px 8px';
+        modeEl.style.fontSize = '13px';
+
+        const optClick = document.createElement('option');
+        optClick.value = 'click';
+        optClick.textContent = 'Klikanie na mapie';
+        const optType = document.createElement('option');
+        optType.value = 'type';
+        optType.textContent = 'Wpisywanie nazw';
+        const optTypeTarget = document.createElement('option');
+        optTypeTarget.value = 'type-target';
+        optTypeTarget.textContent = 'Wpisywanie wskazanego';
+        modeEl.append(optClick, optType, optTypeTarget);
+
+        // Wstaw za selectem sortowania
+        sortEl.insertAdjacentElement('afterend', modeEl);
+        sortEl.insertAdjacentElement('afterend', modeLabel);
+      }
+
+      // Pole do wpisywania odpowiedzi w HUD (tworzone dynamicznie)
+      let typeBox = document.getElementById('typeBox');
+      let answerInput = document.getElementById('answerInput');
+      let answerBtn = document.getElementById('answerBtn');
+      let hudMsgEl = document.getElementById('hudMsg');
+      let idkBtn = document.getElementById('idkBtn');
+      const targetContainer = targetNameEl ? targetNameEl.closest('div') : null;
+      if (!typeBox && hud) {
+        typeBox = document.createElement('div');
+        typeBox.id = 'typeBox';
+        typeBox.style.display = 'none';
+        typeBox.style.gap = '6px';
+        typeBox.style.alignItems = 'center';
+
+        answerInput = document.createElement('input');
+        answerInput.id = 'answerInput';
+        answerInput.type = 'text';
+        answerInput.placeholder = 'Wpisz nazwę państwa i Enter';
+        answerInput.style.padding = '6px 8px';
+        answerInput.style.border = '1px solid #d1d5db';
+        answerInput.style.borderRadius = '6px';
+        answerInput.style.fontSize = '13px';
+        answerInput.style.width = '220px';
+
+        answerBtn = document.createElement('button');
+        answerBtn.id = 'answerBtn';
+        answerBtn.textContent = 'OK';
+        answerBtn.style.appearance = 'none';
+        answerBtn.style.border = '1px solid #2563eb';
+        answerBtn.style.background = '#2563eb';
+        answerBtn.style.color = '#fff';
+        answerBtn.style.padding = '6px 10px';
+        answerBtn.style.borderRadius = '6px';
+        answerBtn.style.fontSize = '13px';
+        answerBtn.style.cursor = 'pointer';
+
+        idkBtn = document.createElement('button');
+        idkBtn.id = 'idkBtn';
+        idkBtn.textContent = 'Nie wiem';
+        idkBtn.title = 'Pomiń to pytanie';
+        idkBtn.style.appearance = 'none';
+        idkBtn.style.border = '1px solid #6b7280';
+        idkBtn.style.background = '#fff';
+        idkBtn.style.color = '#111827';
+        idkBtn.style.padding = '6px 10px';
+        idkBtn.style.borderRadius = '6px';
+        idkBtn.style.fontSize = '13px';
+        idkBtn.style.cursor = 'pointer';
+        idkBtn.style.display = 'none';
+
+        typeBox.appendChild(answerInput);
+        typeBox.appendChild(answerBtn);
+        typeBox.appendChild(idkBtn);
+        hud.appendChild(typeBox);
+      }
+
+      if (!hudMsgEl && hud) {
+        hudMsgEl = document.createElement('span');
+        hudMsgEl.id = 'hudMsg';
+        hudMsgEl.style.marginLeft = '8px';
+        hudMsgEl.style.fontSize = '13px';
+        hudMsgEl.style.color = '#374151';
+        hudMsgEl.style.display = 'none';
+        hud.appendChild(hudMsgEl);
+      }
+
+      // Populacja (przybliżone wartości) – tylko do sortowania
+      const POP_BY_COUNTRY = {
+      };
+
+      let filtered = [...COUNTRY_DATA];
+
+      function renderCountryList(items) {
+        countryListEl.innerHTML = '';
+        for (const c of items) {
+          const li = document.createElement('li');
+          const id = `item-${c.name.replace(/\s+/g, '-')}`;
+          li.innerHTML = `
+            <input type="checkbox" id="${id}" data-name="${c.name}" />
+            <label for="${id}">${c.name}</label>
+          `;
+          countryListEl.appendChild(li);
+        }
+        // Ustaw maksymalną wartość i ogranicz bieżącą dla pola "X"
+        if (pickCountEl) {
+          pickCountEl.max = String(items.length);
+          const current = parseInt(pickCountEl.value || '0', 10);
+          const max = items.length || 1;
+          if (!Number.isFinite(current) || current < 1) {
+            pickCountEl.value = String(Math.min(10, max));
+          } else if (current > max) {
+            pickCountEl.value = String(max);
+          }
+        }
+      }
+
+      function applySort(items) {
+        const mode = sortEl?.value || 'name-asc';
+        const arr = [...items];
+        if (mode === 'name-asc') arr.sort((a,b) => a.name.localeCompare(b.name, 'pl'));
+        else if (mode === 'name-desc') arr.sort((a,b) => b.name.localeCompare(a.name, 'pl'));
+        else if (mode === 'pop-desc') arr.sort((a,b) => (POP_BY_COUNTRY[b.name] ?? 0) - (POP_BY_COUNTRY[a.name] ?? 0));
+        else if (mode === 'pop-asc') arr.sort((a,b) => (POP_BY_COUNTRY[a.name] ?? 0) - (POP_BY_COUNTRY[b.name] ?? 0));
+        return arr;
+      }
+
+      renderCountryList(applySort(filtered));
+      applyLayout();
+
+      searchEl.addEventListener('input', () => {
+        const q = searchEl.value.trim().toLowerCase();
+        filtered = COUNTRY_DATA.filter(c => c.name.toLowerCase().includes(q));
+        renderCountryList(applySort(filtered));
+      });
+
+      sortEl.addEventListener('change', () => {
+        renderCountryList(applySort(filtered));
+      });
+
+      selectAllBtn.addEventListener('click', () => {
+        countryListEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
+      });
+      deselectAllBtn.addEventListener('click', () => {
+        countryListEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+      });
+
+      // Wybierz X pierwszych krajów z aktualnej listy (po sortowaniu i filtrze)
+      pickTopBtn.addEventListener('click', () => {
+        const checkboxes = Array.from(countryListEl.querySelectorAll('input[type="checkbox"]'));
+        const max = checkboxes.length;
+        const n = Math.max(0, Math.min(parseInt(pickCountEl.value, 10) || 0, max));
+        checkboxes.forEach((cb, i) => cb.checked = i < n);
+      });
+
+      function getSelectedCountries() {
+        const names = Array.from(countryListEl.querySelectorAll('input[type="checkbox"]'))
+          .filter(cb => cb.checked)
+          .map(cb => cb.dataset.name);
+        const set = new Set(names);
+        return COUNTRY_DATA.filter(c => set.has(c.name));
+      }
+
+      // --- Mapa --- (bez etykiet miast/państw)
+      const map = L.map('map', {
+        zoomControl: true,
+        worldCopyJump: true
+      }).setView([30, 10], 2);
+
+      // CartoDB Positron (No Labels)
+      const tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> kontrybutorzy &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19
+      }).addTo(map);
+
+      // --- Quiz ---
+      let running = false;
+      let queue = [];
+      let currentIndex = 0;
+      let score = 0;
+      let markerLayer = L.layerGroup().addTo(map);
+      const markerByName = new Map();
+      const REQUEUE_GAP = 3; // po ilu pytaniach ponowić próbę
+
+      const baseMarkerStyle = { radius: 7, color: '#374151', weight: 1.25, fillColor: '#6b7280', fillOpacity: 0.95 };
+      const correctStyle = { color: '#14532d', fillColor: '#22c55e' };
+      const wrongStyle = { color: '#7f1d1d', fillColor: '#ef4444' };
+      const hintStyle = { color: '#1e3a8a', fillColor: '#60a5fa' };
+
+      function shuffle(arr) { return arr.sort(() => Math.random() - 0.5); }
+
+      function showToast(text) {
+        toastEl.textContent = text;
+        toastEl.style.display = 'block';
+        clearTimeout(showToast._t);
+        showToast._t = setTimeout(() => { toastEl.style.display = 'none'; }, 1200);
+      }
+
+      // --- Tryby quizu i pomocnicze ---
+      let quizMode = 'click';
+      let remainingNames = new Set();
+      let nameIndex = new Map(); // normalized -> original
+      let solvedNames = new Set();
+      let hintedName = null;
+
+      function normalizeName(s) {
+        try {
+          return s
+            .toString()
+            .trim()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // usuń diakrytyki
+            .replace(/[-'’`]/g, ' ') // łączniki/apostrofy → spacje
+            .replace(/[^a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ\s]/g, '') // zostaw litery i spacje
+            .replace(/\s+/g, ' ')
+            .trim();
+        } catch(_) { return s.toString().trim().toLowerCase(); }
+      }
+
+      // Dodatkowe akceptowane nazwy (aliasy) dla trybu "Wpisywanie wskazanego"
+      const ALT_NAMES = {
+        'Wielka Brytania': ['Anglia', 'GB', 'UK', 'Zjednoczone Królestwo', 'Wlk Brytania', 'Wlk. Brytania', 'Great Britain', 'United Kingdom'],
+        'Stany Zjednoczone': ['USA', 'US', 'U.S.A.', 'Stany', 'Ameryka', 'Stany Zjednoczone Ameryki']
+      };
+
+      function acceptedNamesFor(canonicalName) {
+        const set = new Set([normalizeName(canonicalName)]);
+        try {
+          const arr = ALT_NAMES[canonicalName] || [];
+          for (const alt of arr) set.add(normalizeName(alt));
+        } catch(_) {}
+        return set;
+      }
+
+      function refreshQuizUiMode() {
+        if (quizMode === 'type') {
+          if (typeof targetContainer !== 'undefined' && targetContainer) targetContainer.style.display = 'none';
+          if (typeof typeBox !== 'undefined' && typeBox) typeBox.style.display = 'flex';
+          if (typeof idkBtn !== 'undefined' && idkBtn) idkBtn.style.display = 'none';
+        } else if (quizMode === 'type-target') {
+          if (typeof targetContainer !== 'undefined' && targetContainer) targetContainer.style.display = 'none';
+          if (typeof typeBox !== 'undefined' && typeBox) typeBox.style.display = 'flex';
+          if (typeof idkBtn !== 'undefined' && idkBtn) idkBtn.style.display = '';
+        } else {
+          if (typeof targetContainer !== 'undefined' && targetContainer) targetContainer.style.display = '';
+          if (typeof typeBox !== 'undefined' && typeBox) typeBox.style.display = 'none';
+          if (typeof idkBtn !== 'undefined' && idkBtn) idkBtn.style.display = 'none';
+        }
+      }
+
+      function updateTypeTargetHint() {
+        if (quizMode !== 'type-target') return;
+        // Nowe pytanie – wyczyść poprzedni komunikat w HUD
+        showHudMessage('');
+        // Przywróć poprzedni hint jeśli nie został rozwiązany
+        if (hintedName && !solvedNames.has(hintedName)) {
+          const prevM = markerByName.get(hintedName);
+          if (prevM) prevM.setStyle({ ...baseMarkerStyle });
+        }
+        const target = queue[currentIndex];
+        if (!target) return;
+        const m = markerByName.get(target.name);
+        if (m) {
+          m.setStyle({ ...baseMarkerStyle, ...hintStyle });
+          hintedName = target.name;
+          // Przybliż mapę na wskazany kraj
+          try {
+            const ll = typeof m.getLatLng === 'function' ? m.getLatLng() : null;
+            if (ll && typeof map !== 'undefined') {
+              const currentZ = (map.getZoom && map.getZoom()) || 2;
+              const targetZ = Math.max(currentZ, 4.5);
+              if (map.flyTo) map.flyTo(ll, targetZ, { duration: 0.6 });
+              else if (map.setView) map.setView(ll, targetZ);
+            }
+          } catch(_) {}
+        } else {
+          hintedName = null;
+        }
+      }
+
+      function showTempLabelFor(name) {
+        try {
+          const m = markerByName.get(name);
+          if (!m) return;
+          if (m._tempLabelTimer) clearTimeout(m._tempLabelTimer);
+          m.bindTooltip(String(name), { direction: 'top', offset: [0, -8], opacity: 0.95 }).openTooltip();
+          m._tempLabelTimer = setTimeout(() => {
+            try { m.unbindTooltip(); } catch(_){}
+          }, 1200);
+        } catch(_){}
+      }
+
+      function showHudMessage(text, ms = null) {
+        if (!hudMsgEl) return;
+        if (!text) {
+          hudMsgEl.style.display = 'none';
+          hudMsgEl.textContent = '';
+          if (showHudMessage._t) clearTimeout(showHudMessage._t);
+          return;
+        }
+        hudMsgEl.textContent = text;
+        hudMsgEl.style.display = '';
+        if (showHudMessage._t) clearTimeout(showHudMessage._t);
+        if (Number.isFinite(ms) && ms > 0) {
+          showHudMessage._t = setTimeout(() => {
+            try {
+              hudMsgEl.style.display = 'none';
+              hudMsgEl.textContent = '';
+            } catch(_){}
+          }, ms);
+        }
+      }
+
+      function updateHUD() {
+        scoreEl.textContent = String(score);
+        progressEl.textContent = `${Math.min(currentIndex, queue.length)}/${queue.length}`;
+        targetNameEl.textContent = queue[currentIndex]?.name ?? '—';
+      }
+
+      function setUiDisabled(disabled) {
+        startBtn.disabled = disabled;
+        countryListEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.disabled = disabled);
+        searchEl.disabled = disabled;
+        selectAllBtn.disabled = disabled;
+        deselectAllBtn.disabled = disabled;
+        if (pickCountEl) pickCountEl.disabled = disabled;
+        if (pickTopBtn) pickTopBtn.disabled = disabled;
+        if (typeof modeEl !== 'undefined' && modeEl) modeEl.disabled = disabled;
+      }
+
+      // Tryb mobilny: na telefonie najpierw tylko wybieranie, potem tylko mapa
+
+      function isMobile() { return window.matchMedia('(max-width: 768px)').matches; }
+
+      function applyLayout() {
+        if (isMobile()) {
+          if (running) {
+            if (sidebarEl) sidebarEl.style.display = 'none';
+            if (mainEl) mainEl.style.display = 'flex';
+            // Po pokazaniu mapy z ukrycia przelicz jej wymiary
+            setTimeout(() => {
+              try {
+                if (typeof map !== 'undefined' && map.invalidateSize) {
+                  map.invalidateSize();
+                  if (typeof fitToMarkers === 'function') fitToMarkers();
+                }
+              } catch(_){}
+            }, 50);
+          } else {
+            if (sidebarEl) sidebarEl.style.display = 'flex';
+            if (mainEl) mainEl.style.display = 'none';
+          }
+        } else {
+          if (sidebarEl) sidebarEl.style.display = 'flex';
+          if (mainEl) mainEl.style.display = 'flex';
+          // Na desktopie również upewnij się, że mapa ma właściwy rozmiar po zmianie układu
+          setTimeout(() => {
+            try {
+              if (typeof map !== 'undefined' && map.invalidateSize) map.invalidateSize();
+            } catch(_){}
+          }, 50);
+        }
+      }
+
+      window.addEventListener('resize', applyLayout);
+
+      function clearMarkers() {
+        markerLayer.clearLayers();
+        markerByName.clear();
+      }
+
+      function fitToMarkers() {
+        if (markerLayer.getLayers().length === 0) return;
+        try {
+          const bounds = L.featureGroup(markerLayer.getLayers()).getBounds();
+          if (bounds.isValid()) {
+            map.fitBounds(bounds.pad(0.2));
+          }
+        } catch (_) {}
+      }
+
+      function onMarkerClick(country, marker) {
+        if (!running) return;
+        if (quizMode !== 'click') return;
+        const target = queue[currentIndex];
+        if (!target) return;
+
+        const isCorrect = country.name === target.name;
+        if (isCorrect) {
+          marker.setStyle(correctStyle);
+          marker.off('click');
+          score += 1;
+          currentIndex += 1;
+          if (currentIndex >= queue.length) {
+            updateHUD();
+            running = false;
+            setUiDisabled(false);
+            showToast(`Koniec! Wynik: ${score}/${queue.length}`);
+            targetNameEl.textContent = '—';
+            return;
+          }
+          updateHUD();
+        } else {
+          const prev = { ...baseMarkerStyle };
+          marker.setStyle({ ...baseMarkerStyle, ...wrongStyle });
+          setTimeout(() => marker.setStyle(prev), 450);
+
+          // Podświetl prawidłowy kraj na chwilę
+          const correctMarker = markerByName.get(target.name);
+          if (correctMarker) {
+            const prevCorrect = { ...baseMarkerStyle };
+            correctMarker.setStyle({ ...baseMarkerStyle, color: '#1e3a8a', fillColor: '#60a5fa' });
+            setTimeout(() => correctMarker.setStyle(prevCorrect), 750);
+            showTempLabelFor(target.name);
+          }
+
+          // Zawsze requeue: wstaw ponownie za kilka pytań
+          const [cur] = queue.splice(currentIndex, 1);
+          const insertAt = Math.min(queue.length, currentIndex + REQUEUE_GAP);
+          queue.splice(insertAt, 0, cur);
+          showToast('Błąd. Spróbujesz ponownie za kilka pytań.');
+
+          // currentIndex wskazuje teraz kolejny element; jeśli nic nie zostało – zakończ
+          if (currentIndex >= queue.length) {
+            updateHUD();
+            running = false;
+            setUiDisabled(false);
+            showToast(`Koniec! Wynik: ${score}/${queue.length}`);
+            targetNameEl.textContent = '�?"';
+            return;
+          }
+          updateHUD();
+        }
+      }
+
+      function startQuiz() {
+        const selected = getSelectedCountries();
+        quizMode = (typeof modeEl !== 'undefined' && modeEl && modeEl.value) ? modeEl.value : 'click';
+        if (selected.length < 2) {
+          showToast('Wybierz co najmniej 2 państwa.');
+          return;
+        }
+
+        running = true;
+        hud.style.display = 'flex';
+        showHudMessage('');
+        score = 0;
+        currentIndex = 0;
+        queue = shuffle([...selected]);
+        updateHUD();
+        setUiDisabled(true);
+        applyLayout();
+
+        clearMarkers();
+        for (const country of selected) {
+          const marker = L.circleMarker([country.lat, country.lng], baseMarkerStyle);
+          marker.on('click', () => onMarkerClick(country, marker));
+          marker.addTo(markerLayer);
+          markerByName.set(country.name, marker);
+        }
+        if (quizMode === 'type') {
+          remainingNames = new Set();
+          nameIndex = new Map();
+          for (const c of selected) {
+            const norm = normalizeName(c.name);
+            remainingNames.add(norm);
+            nameIndex.set(norm, c.name);
+          }
+          refreshQuizUiMode();
+          try { answerInput && answerInput.focus(); } catch(_) {}
+        } else if (quizMode === 'type-target') {
+          solvedNames = new Set();
+          hintedName = null;
+          refreshQuizUiMode();
+          updateTypeTargetHint();
+          try { answerInput && answerInput.focus(); } catch(_) {}
+        } else {
+          refreshQuizUiMode();
+        }
+        fitToMarkers();
+        setTimeout(() => { try { if (typeof map !== 'undefined' && map.invalidateSize) { map.invalidateSize(); fitToMarkers(); } } catch(_){} }, 50);
+      }
+
+      function onAnswerSubmit() {
+        if (!running) return;
+        const raw = (answerInput?.value || '').trim();
+        if (!raw) return;
+        const norm = normalizeName(raw);
+
+        if (quizMode === 'type') {
+          if (remainingNames.has(norm)) {
+            remainingNames.delete(norm);
+            const original = nameIndex.get(norm) || raw;
+            const m = markerByName.get(original);
+            if (m) m.setStyle({ ...baseMarkerStyle, ...correctStyle });
+            score += 1;
+            currentIndex = score;
+            answerInput.value = '';
+            showToast(`Dobrze! (${score}/${queue.length})`);
+            if (score >= queue.length) {
+              updateHUD();
+              refreshQuizUiMode();
+              running = false;
+              setUiDisabled(false);
+              showToast(`Koniec! Wynik: ${score}/${queue.length}`);
+            } else {
+              updateHUD();
+              refreshQuizUiMode();
+            }
+          } else {
+            showToast('Brak na liście zaznaczonych. Spróbuj ponownie.');
+          }
+          return;
+        }
+
+        if (quizMode === 'type-target') {
+          const target = queue[currentIndex];
+          if (!target) return;
+          const accepted = acceptedNamesFor(target.name);
+          const isCorrect = accepted.has(norm);
+          if (isCorrect) {
+            const m = markerByName.get(target.name);
+            if (m) m.setStyle({ ...baseMarkerStyle, ...correctStyle });
+            solvedNames.add(target.name);
+            score += 1;
+            currentIndex += 1;
+            answerInput.value = '';
+            if (currentIndex >= queue.length) {
+              updateHUD();
+              refreshQuizUiMode();
+              running = false;
+              setUiDisabled(false);
+              showToast(`Koniec! Wynik: ${score}/${queue.length}`);
+              targetNameEl.textContent = '—';
+              return;
+            }
+            showHudMessage(`To było: ${target.name}`);
+            updateHUD();
+            refreshQuizUiMode();
+            updateTypeTargetHint();
+            showToast(`Błąd. To było: ${target.name}. Spróbujesz ponownie za kilka pytań.`);
+          } else {
+            // Pokaż etykietę poprawnego kraju na chwilę
+            showTempLabelFor(target.name);
+            // Requeue za kilka pytań
+            const [cur] = queue.splice(currentIndex, 1);
+            const insertAt = Math.min(queue.length, currentIndex + REQUEUE_GAP);
+            queue.splice(insertAt, 0, cur);
+            showToast('Błąd. Spróbujesz ponownie za kilka pytań.');
+            updateHUD();
+            refreshQuizUiMode();
+            updateTypeTargetHint();
+          }
+        }
+      }
+
+      function onIDontKnow() {
+        if (!running || quizMode !== 'type-target') return;
+        const target = queue[currentIndex];
+        if (!target) return;
+        // Pomiń jak błąd: przenieś pytanie dalej
+        const [cur] = queue.splice(currentIndex, 1);
+        const insertAt = Math.min(queue.length, currentIndex + REQUEUE_GAP);
+        queue.splice(insertAt, 0, cur);
+        answerInput && (answerInput.value = '');
+        showToast('Pominięto. Spróbujesz ponownie za kilka pytań.');
+        updateHUD();
+        refreshQuizUiMode();
+        updateTypeTargetHint();
+      }
+
+      function resetQuiz() {
+        running = false;
+        setUiDisabled(false);
+        hud.style.display = 'none';
+        targetNameEl.textContent = '—';
+        score = 0;
+        currentIndex = 0;
+        queue = [];
+        updateHUD();
+        clearMarkers();
+        // Przywróć UI trybu
+        try {
+          if (typeof typeBox !== 'undefined' && typeBox) typeBox.style.display = 'none';
+          if (typeof targetContainer !== 'undefined' && targetContainer) targetContainer.style.display = '';
+          if (typeof answerInput !== 'undefined' && answerInput) answerInput.value = '';
+          quizMode = 'click';
+          solvedNames = new Set();
+          hintedName = null;
+        } catch(_) {}
+        applyLayout();
+      }
+
+      startBtn.addEventListener('click', startQuiz);
+      resetBtn.addEventListener('click', resetQuiz);
+      if (typeof answerBtn !== 'undefined' && answerBtn) answerBtn.addEventListener('click', onAnswerSubmit);
+      if (typeof answerInput !== 'undefined' && answerInput) answerInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') onAnswerSubmit(); });
+      if (typeof idkBtn !== 'undefined' && idkBtn) idkBtn.addEventListener('click', onIDontKnow);
+
+      // Przy pierwszym uruchomieniu: nic nie startujemy
+    </script>
+  </body>
+  </html>

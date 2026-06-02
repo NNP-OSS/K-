@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang='pl'>
+<head>
+<meta charset='UTF-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0'>
+<title>Konturówka + | Jak stworzyć własną mapę?</title>
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, sans-serif;
+        margin: 0;
+        padding: 20px;
+        min-height: 100vh;
+        background: linear-gradient(-45deg, #74ebd5, #ACB6E5, #fbc2eb, #a6c1ee);
+        background-size: 400% 400%;
+        animation: gradientBG 10s ease infinite;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+    }
+    @keyframes gradientBG {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    .menu-container {
+        background: rgba(255, 255, 255, 0.9);
+        padding: 40px;
+        border-radius: 15px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        max-width: 700px;
+        width: 100%;
+    }
+    h1 {
+        margin-bottom: 6px;
+        color: #2c3e50;
+        font-size: 2em;
+        text-align: center;
+    }
+    h6 {
+        text-align: center;
+        color: #666;
+        margin-bottom: 28px;
+        font-weight: normal;
+    }
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: #3498db;
+        text-decoration: none;
+        font-size: 15px;
+        margin-bottom: 28px;
+        transition: 0.2s;
+    }
+    .back-link:hover { color: #2980b9; }
+
+    .steps { display: flex; flex-direction: column; gap: 20px; }
+
+    .step {
+        background: rgba(255,255,255,0.7);
+        border-left: 4px solid #3498db;
+        border-radius: 8px;
+        padding: 18px 22px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+
+    .step-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 10px;
+    }
+
+    .step-num {
+        background: #3498db;
+        color: white;
+        font-weight: 700;
+        font-size: 13px;
+        padding: 3px 10px;
+        border-radius: 99px;
+        white-space: nowrap;
+    }
+
+    .step-title {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+
+    .step-body {
+        color: #444;
+        font-size: 15px;
+        line-height: 1.65;
+    }
+    .step-body p + p { margin-top: 8px; }
+    .step-body a { color: #3498db; }
+    .step-body a:hover { color: #2980b9; }
+
+    .checklist {
+        list-style: none;
+        padding: 0;
+        margin: 10px 0 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .checklist li {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        font-size: 14px;
+        color: #555;
+        line-height: 1.5;
+    }
+    .checklist li::before {
+        content: '→';
+        color: #3498db;
+        font-weight: 700;
+        flex-shrink: 0;
+        margin-top: 1px;
+    }
+
+    .code-block {
+        background: #f0f4f8;
+        border: 1px solid #d1dce8;
+        border-radius: 6px;
+        padding: 12px 16px;
+        margin: 10px 0;
+        font-family: 'Courier New', monospace;
+        font-size: 13px;
+        color: #1a5276;
+        overflow-x: auto;
+        white-space: pre;
+        line-height: 1.6;
+    }
+
+    .prompt-box {
+        background: #f8f4ff;
+        border-left: 3px solid #ACB6E5;
+        border-radius: 0 6px 6px 0;
+        padding: 12px 16px;
+        margin: 10px 0;
+        font-size: 14px;
+        color: #4a4060;
+        line-height: 1.65;
+        font-style: italic;
+    }
+
+    .info-box {
+        background: #fef9f0;
+        border: 1px solid #f0d9a0;
+        border-radius: 6px;
+        padding: 10px 14px;
+        margin: 10px 0;
+        font-size: 14px;
+        color: #7a5c1e;
+        line-height: 1.55;
+    }
+    .info-box strong { color: #5a3e0e; }
+
+    .btn-download {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        color: white;
+        background: #3498db;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 16px;
+        margin-top: 10px;
+        transition: 0.3s ease;
+    }
+    .btn-download:hover {
+        background: #2980b9;
+        transform: scale(1.04);
+        color: white;
+    }
+
+    .footer-note {
+        text-align: center;
+        color: #888;
+        font-size: 12px;
+        margin-top: 32px;
+    }
+</style>
+<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css'>
+</head>
+<body>
+<div class='menu-container'>
+    <h1>Konturówka +</h1>
+    <h6>🄯Damian Leguła © for data OpenStreetMap &amp; contributors</h6>
+
+    <a href='index.html' class='back-link'>
+        ← Wróć do menu
+    </a>
+
+    <div class='steps'>
+
+        <div class='step'>
+            <div class='step-header'>
+                <span class='step-num'>Krok 1</span>
+                <span class='step-title'>Załóż konto na Claude.ai</span>
+            </div>
+            <div class='step-body'>
+                <p>Wejdź na <a href='https://claude.ai' target='_blank'>claude.ai</a> i kliknij <strong>Sign up</strong>. Możesz zarejestrować się przez e-mail lub konto Google/Apple. Darmowe konto w zupełności wystarczy.</p>
+                <ul class='checklist'>
+                    <li>Otwórz <a href='https://claude.ai' target='_blank'>claude.ai</a> w przeglądarce</li>
+                    <li>Kliknij <strong>Sign up</strong> i podaj e-mail lub zaloguj się kontem Google</li>
+                    <li>Potwierdź adres e-mail — po zalogowaniu zobaczysz okno czatu</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class='step'>
+            <div class='step-header'>
+                <span class='step-num'>Krok 2</span>
+                <span class='step-title'>Pobierz plik skilla</span>
+            </div>
+            <div class='step-body'>
+                <p>Skill to plik instrukcji, który mówi Claudowi jak wygenerować Konturówkę +. Pobierz go poniżej i zapisz na komputerze (folder Pobrane):</p>
+                <a href='https://nnp-oss.github.io/K-/k-plus-nowa-lista-miejsc.skill' download  target='_blank'>
+                    ⬇ Pobierz k-plus-nowa-lista-miejsc.skill
+                </a>
+            </div>
+        </div>
+
+        <div class='step'>
+            <div class='step-header'>
+                <span class='step-num'>Krok 3</span>
+                <span class='step-title'>Zainstaluj skill w Claudzie</span>
+            </div>
+            <div class='step-body'>
+                <ul class='checklist'>
+                    <li>Na stronie claude.ai kliknij <strong>Customize</strong> w lewym panelu → <strong>New project</strong></li>
+                    <li>Kliknij skills</li>
+                    <li>Kliknij ikonę plusa</li>
+                    <li>Kliknij create skill > Upload a skill</li>
+		    <li>Wybierz plik skilla który pobrałeś w poprzednik kroku</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class='step'>
+            <div class='step-header'>
+                <span class='step-num'>Krok 4</span>
+                <span class='step-title'>Napisz prompt z listą miejsc</span>
+            </div>
+            <div class='step-body'>
+                <p>Kliknij ikonę plusa po lewej stronie</p>
+		<p>Naciśnij <strong>/</strong> i wybierz z listy skilla którego dodałeś</p>
+		<p>Wpisz w czat np.:</p>                
+<div class='prompt-box'>/k-plus-nowa-lista-miejsc  Warszawa Kraków Gdańsk Wrocław Łódź Poznań Szczecin
+</div>
+                <p>Możesz podać dowolną listę: państwa, miasta, rzeki, szczyty, morza. Możesz też napisać np. <em>„wszystkie stolice Afryki"</em> — Claude sam ułoży listę z współrzędnymi.</p>
+            </div>
+        </div>
+
+        <div class='step'>
+            <div class='step-header'>
+                <span class='step-num'>Krok 5</span>
+                <span class='step-title'>Pobierz i zapisz gotowy plik HTML</span>
+            </div>
+            <div class='step-body'>
+                <ul class='checklist'>
+                    <li>Kliknij <strong>Download</strong>po zakończeniu generowania</li>
+                    <li>Kliknij w pobrany plik aby go otworzyć</li>
+                    <li><strong>Gotowe!</strong?</li>
+            </div>
+        </div>
+
+
+    </div>
+
+    <div class='footer-note'>
+        🄯 Damian Leguła &nbsp;•&nbsp; Dane mapowe © <a href='https://www.openstreetmap.org/copyright' target='_blank'>OpenStreetMap</a> &amp; contributors
+    </div>
+</div>
+</body>
+</html>

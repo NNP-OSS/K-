@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Generator plików HTML</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 24px;
+        background: #f4f6fb;
+        color: #1f2937;
+      }
+
+      .card {
+        max-width: 900px;
+        margin: 0 auto;
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        padding: 20px;
+      }
+
+      h1 {
+        margin-top: 0;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 260px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 14px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        box-sizing: border-box;
+      }
+
+      .actions {
+        margin-top: 12px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      button, a.button {
+        border: 1px solid #2563eb;
+        background: #2563eb;
+        color: #fff;
+        border-radius: 8px;
+        padding: 10px 14px;
+        text-decoration: none;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      button.secondary {
+        background: #fff;
+        color: #2563eb;
+      }
+
+      #downloads {
+        margin-top: 18px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .hint {
+        color: #4b5563;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Generator plików HTML</h1>
+      <p class="hint">
+        Wpisz listę (jeden wpis na linię). Każda linia utworzy osobny plik HTML.
+      </p>
+      <textarea id="source" placeholder="Przykład:
+Warszawa
+Kraków
+Gdańsk"></textarea>
+      <div class="actions">
+        <button id="generateBtn">Generuj pliki</button>
+        <button id="clearBtn" class="secondary">Wyczyść</button>
+        <a class="button secondary" href="index.html">Wróć</a>
+      </div>
+      <div id="downloads"></div>
+    </div>
+
+    <script>
+      const source = document.getElementById("source");
+      const downloads = document.getElementById("downloads");
+      const generateBtn = document.getElementById("generateBtn");
+      const clearBtn = document.getElementById("clearBtn");
+
+      function sanitizeFileName(text) {
+        return text
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_")
+          .replace(/^_+|_+$/g, "") || "plik";
+      }
+
+      function createDocument(title) {
+        return `<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${title}</title>
+  </head>
+  <body>
+    <h1>${title}</h1>
+  </body>
+</html>`;
+      }
+
+      generateBtn.addEventListener("click", () => {
+        downloads.innerHTML = "";
+        const items = source.value
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean);
+
+        if (!items.length) {
+          alert("Podaj co najmniej jedną linię.");
+          return;
+        }
+
+        items.forEach((item, index) => {
+          const html = createDocument(item);
+          const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `${sanitizeFileName(item)}_${index + 1}.html`;
+          link.textContent = `Pobierz: ${link.download}`;
+          link.className = "button";
+          downloads.appendChild(link);
+        });
+      });
+
+      clearBtn.addEventListener("click", () => {
+        source.value = "";
+        downloads.innerHTML = "";
+      });
+    </script>
+  </body>
+</html>

@@ -55,7 +55,7 @@
         font-size: 14px;
       }
 
-      button.secondary {
+      button.secondary, a.button.secondary {
         background: #fff;
         color: #2563eb;
       }
@@ -79,6 +79,7 @@
       <p class="hint">
         Wpisz listę (jeden wpis na linię). Każda linia utworzy osobny plik HTML.
       </p>
+      <label for="source">Lista wpisów (jeden wpis na linię):</label>
       <textarea id="source" placeholder="Przykład:
 Warszawa
 Kraków
@@ -96,6 +97,7 @@ Gdańsk"></textarea>
       const downloads = document.getElementById("downloads");
       const generateBtn = document.getElementById("generateBtn");
       const clearBtn = document.getElementById("clearBtn");
+      let downloadUrls = [];
 
       function sanitizeFileName(text) {
         return text
@@ -106,22 +108,38 @@ Gdańsk"></textarea>
           .replace(/^_+|_+$/g, "") || "plik";
       }
 
+      function escapeHtml(text) {
+        return text
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function clearDownloads() {
+        downloadUrls.forEach((url) => URL.revokeObjectURL(url));
+        downloadUrls = [];
+        downloads.innerHTML = "";
+      }
+
       function createDocument(title) {
+        const escapedTitle = escapeHtml(title);
         return `<!DOCTYPE html>
 <html lang="pl">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${title}</title>
+    <title>${escapedTitle}</title>
   </head>
   <body>
-    <h1>${title}</h1>
+    <h1>${escapedTitle}</h1>
   </body>
 </html>`;
       }
 
       generateBtn.addEventListener("click", () => {
-        downloads.innerHTML = "";
+        clearDownloads();
         const items = source.value
           .split("\n")
           .map((line) => line.trim())
@@ -136,6 +154,7 @@ Gdańsk"></textarea>
           const html = createDocument(item);
           const blob = new Blob([html], { type: "text/html;charset=utf-8" });
           const url = URL.createObjectURL(blob);
+          downloadUrls.push(url);
           const link = document.createElement("a");
           link.href = url;
           link.download = `${sanitizeFileName(item)}_${index + 1}.html`;
@@ -147,7 +166,7 @@ Gdańsk"></textarea>
 
       clearBtn.addEventListener("click", () => {
         source.value = "";
-        downloads.innerHTML = "";
+        clearDownloads();
       });
     </script>
   </body>

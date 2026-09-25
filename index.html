@@ -9,11 +9,13 @@
     body {
         font-family: 'Segoe UI', Tahoma, sans-serif;
         margin: 0;
-        padding: 0;
+        padding: 16px;
         display: flex;
         justify-content: center;
         align-items: center;
-        height: 100vh;
+        min-height: 100vh;
+        min-height: 100dvh;
+        box-sizing: border-box;
         background: linear-gradient(-45deg, #74ebd5, #ACB6E5, #fbc2eb, #a6c1ee);
         background-size: 400% 400%;
         animation: gradientBG 10s ease infinite;
@@ -61,6 +63,28 @@
     }
     .menu-buttons i {
         font-size: 20px;
+    }
+    @media (max-width: 768px) {
+        body {
+            align-items: flex-start;
+            padding: 12px;
+        }
+        .menu-container {
+            padding: 20px 14px;
+            border-radius: 12px;
+        }
+        h1 {
+            font-size: 1.6em;
+        }
+        .menu-buttons {
+            gap: 10px;
+        }
+        .menu-buttons a {
+            width: 100%;
+            justify-content: center;
+            padding: 12px 14px;
+            font-size: 16px;
+        }
     }
 </style>
 <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css'>

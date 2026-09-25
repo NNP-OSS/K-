@@ -22,8 +22,7 @@
       .app {
         display: flex;
         height: 100vh;
-        height: 100dvh;
-        width: 100%;
+        width: 100vw;
         overflow: hidden;
       }
 
@@ -126,56 +125,11 @@
         width: 100%;
       }
 
-      /* Ulepszenia mobilne */
+      /* Ulepszenia mobilne: pełna szerokość panelu wyboru */
       @media (max-width: 768px) {
-        .app {
-          flex-direction: column;
-        }
-
         .sidebar {
           width: 100%;
-          min-width: 0;
           max-width: none;
-          max-height: 48dvh;
-          border-right: 0;
-          border-bottom: 1px solid #e5e7eb;
-        }
-
-        .sidebar header {
-          padding: 10px 12px 8px;
-        }
-
-        .list {
-          padding: 8px 10px 10px;
-        }
-
-        .cities {
-          max-height: min(36dvh, 280px);
-        }
-
-        .main {
-          min-height: 0;
-        }
-
-        .hud {
-          top: 8px;
-          gap: 8px;
-          padding: 6px 10px;
-          font-size: 12px;
-          flex-wrap: wrap;
-          max-width: calc(100% - 16px);
-        }
-
-        .toast {
-          max-width: calc(100% - 24px);
-          text-align: center;
-        }
-
-        .footer {
-          right: 8px;
-          bottom: 8px;
-          font-size: 11px;
-          max-width: calc(100% - 16px);
         }
       }
 
